@@ -27,12 +27,7 @@ release:
   name_template: "{{.ProjectName}} release v{{.Version}}"
 
 changelog:
-  disable: false
-  use: github
-  filters:
-    exclude:
-    - "Merge pull request"
-    - "dependabot"
+  disable: true
 
 brews:
 - repository:
