@@ -95,6 +95,12 @@ type Scaffold struct {
 	cjkBold       imgfont.Face
 	cjkItalic     imgfont.Face
 	cjkBoldItalic imgfont.Face
+
+	// Symbol font faces for Unicode symbol support (DejaVu Sans has wide coverage)
+	symbolRegular    imgfont.Face
+	symbolBold       imgfont.Face
+	symbolItalic     imgfont.Face
+	symbolBoldItalic imgfont.Face
 }
 
 func NewImageCreator() Scaffold {
@@ -106,6 +112,7 @@ func NewImageCreator() Scaffold {
 	}
 
 	cjkFont := cjkfont.NotoSansCJK{}
+	symbolFont := cjkfont.DejaVuSans{}
 
 	return Scaffold{
 		defaultForegroundColor: bunt.LightGray,
@@ -132,6 +139,11 @@ func NewImageCreator() Scaffold {
 		cjkBold:       cjkFont.Bold(fontFaceOptions),
 		cjkItalic:     cjkFont.Italic(fontFaceOptions),
 		cjkBoldItalic: cjkFont.BoldItalic(fontFaceOptions),
+
+		symbolRegular:    symbolFont.Regular(fontFaceOptions),
+		symbolBold:       symbolFont.Bold(fontFaceOptions),
+		symbolItalic:     symbolFont.Italic(fontFaceOptions),
+		symbolBoldItalic: symbolFont.BoldItalic(fontFaceOptions),
 
 		lineSpacing: 1.2,
 		tabSpaces:   2,
@@ -223,14 +235,18 @@ func isCJKChar(r rune) bool {
 		(r >= 0xFF00 && r <= 0xFFEF) // Halfwidth and Fullwidth Forms
 }
 
-// isSymbolChar checks if a rune is a special symbol character that should use the symbol font
+// isSymbolChar checks if a rune is a Unicode symbol character
 func isSymbolChar(r rune) bool {
-	// Check marks and symbols
-	return (r >= 0x2700 && r <= 0x27BF) || // Dingbats
-		(r >= 0x2600 && r <= 0x26FF) || // Miscellaneous Symbols
-		(r >= 0x2190 && r <= 0x21FF) || // Arrows
+	// Common Unicode symbol ranges that may not be in Hack font
+	return (r >= 0x2190 && r <= 0x21FF) || // Arrows
+		(r >= 0x2200 && r <= 0x22FF) || // Mathematical Operators
 		(r >= 0x2300 && r <= 0x23FF) || // Miscellaneous Technical
-		(r >= 0x25A0 && r <= 0x25FF) // Geometric Shapes
+		(r >= 0x2460 && r <= 0x24FF) || // Enclosed Alphanumerics
+		(r >= 0x2500 && r <= 0x257F) || // Box Drawing
+		(r >= 0x2580 && r <= 0x259F) || // Block Elements
+		(r >= 0x25A0 && r <= 0x25FF) || // Geometric Shapes
+		(r >= 0x2600 && r <= 0x26FF) || // Miscellaneous Symbols
+		(r >= 0x2700 && r <= 0x27BF) // Dingbats (✓ ✘ ✔ etc.)
 }
 
 func (s *Scaffold) measureContent() (width float64, height float64) {
@@ -349,11 +365,24 @@ func (s *Scaffold) image() (image.Image, error) {
 	for _, cr := range s.content {
 		// Determine font face based on style settings and character type
 		var fontFace imgfont.Face
-		useSymbol := isSymbolChar(cr.Symbol)
 		useCJK := isCJKChar(cr.Symbol)
+		useSymbol := isSymbolChar(cr.Symbol)
 
-		// Symbols and CJK both use CJK font which has better Unicode coverage
-		if useSymbol || useCJK {
+		// Priority: Symbol > CJK > Regular
+		if useSymbol {
+			// Use DejaVu Sans for Unicode symbols
+			switch cr.Settings & 0x1C {
+			case 4: // Bold
+				fontFace = s.symbolBold
+			case 8: // Italic
+				fontFace = s.symbolItalic
+			case 12: // Bold Italic
+				fontFace = s.symbolBoldItalic
+			default: // Regular
+				fontFace = s.symbolRegular
+			}
+		} else if useCJK {
+			// Use Noto Sans CJK for CJK characters
 			switch cr.Settings & 0x1C {
 			case 4: // Bold
 				fontFace = s.cjkBold
@@ -365,6 +394,7 @@ func (s *Scaffold) image() (image.Image, error) {
 				fontFace = s.cjkRegular
 			}
 		} else {
+			// Use Hack for regular ASCII/Latin characters
 			switch cr.Settings & 0x1C {
 			case 4: // Bold
 				fontFace = s.bold
@@ -382,6 +412,12 @@ func (s *Scaffold) image() (image.Image, error) {
 		str := string(cr.Symbol)
 		w, h := dc.MeasureString(str)
 
+		// Get font metrics for proper background alignment
+		metrics := fontFace.Metrics()
+		ascent := float64(metrics.Ascent >> 6)
+		descent := float64(metrics.Descent >> 6)
+		fontHeight := ascent + descent
+
 		// background color
 		switch cr.Settings & 0x02 { //nolint:gocritic
 		case 2:
@@ -391,7 +427,8 @@ func (s *Scaffold) image() (image.Image, error) {
 				int((cr.Settings>>48)&0xFF), // #nosec G115
 			)
 
-			dc.DrawRectangle(x, y-h+12, w, h)
+			// Draw background rectangle aligned with font baseline
+			dc.DrawRectangle(x, y-ascent, w, fontHeight)
 			dc.Fill()
 		}
 
