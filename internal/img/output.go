@@ -29,6 +29,7 @@ import (
 	"math"
 	"os"
 	"strings"
+	"unicode"
 
 	"github.com/esimov/stackblur-go"
 	"github.com/fogleman/gg"
@@ -36,6 +37,7 @@ import (
 	"github.com/gonvenience/bunt"
 	"github.com/gonvenience/font"
 	"github.com/gonvenience/term"
+	cjkfont "github.com/homeport/termshot/internal/font"
 	imgfont "golang.org/x/image/font"
 )
 
@@ -87,6 +89,12 @@ type Scaffold struct {
 	boldItalic  imgfont.Face
 	lineSpacing float64
 	tabSpaces   int
+
+	// CJK font faces for Chinese character support
+	cjkRegular    imgfont.Face
+	cjkBold       imgfont.Face
+	cjkItalic     imgfont.Face
+	cjkBoldItalic imgfont.Face
 }
 
 func NewImageCreator() Scaffold {
@@ -96,6 +104,8 @@ func NewImageCreator() Scaffold {
 		Size: f * defaultFontSize,
 		DPI:  defaultFontDPI,
 	}
+
+	cjkFont := cjkfont.NotoSansCJK{}
 
 	return Scaffold{
 		defaultForegroundColor: bunt.LightGray,
@@ -117,6 +127,11 @@ func NewImageCreator() Scaffold {
 		bold:       font.Hack.Bold(fontFaceOptions),
 		italic:     font.Hack.Italic(fontFaceOptions),
 		boldItalic: font.Hack.BoldItalic(fontFaceOptions),
+
+		cjkRegular:    cjkFont.Regular(fontFaceOptions),
+		cjkBold:       cjkFont.Bold(fontFaceOptions),
+		cjkItalic:     cjkFont.Italic(fontFaceOptions),
+		cjkBoldItalic: cjkFont.BoldItalic(fontFaceOptions),
 
 		lineSpacing: 1.2,
 		tabSpaces:   2,
@@ -196,6 +211,16 @@ func (s *Scaffold) AddContent(in io.Reader) error {
 
 func (s *Scaffold) fontHeight() float64 {
 	return float64(s.regular.Metrics().Height >> 6)
+}
+
+// isCJKChar checks if a rune is a CJK (Chinese, Japanese, Korean) character
+func isCJKChar(r rune) bool {
+	return unicode.Is(unicode.Han, r) ||
+		unicode.Is(unicode.Hiragana, r) ||
+		unicode.Is(unicode.Katakana, r) ||
+		unicode.Is(unicode.Hangul, r) ||
+		(r >= 0x3000 && r <= 0x303F) || // CJK Symbols and Punctuation
+		(r >= 0xFF00 && r <= 0xFFEF) // Halfwidth and Fullwidth Forms
 }
 
 func (s *Scaffold) measureContent() (width float64, height float64) {
@@ -312,19 +337,41 @@ func (s *Scaffold) image() (image.Image, error) {
 	//
 	var x, y = xOffset + paddingX, yOffset + paddingY + titleOffset + s.fontHeight()
 	for _, cr := range s.content {
+		// Determine font face based on style settings and character type
+		var fontFace imgfont.Face
+		useCJK := isCJKChar(cr.Symbol)
+
 		switch cr.Settings & 0x1C {
-		case 4:
-			dc.SetFontFace(s.bold)
+		case 4: // Bold
+			if useCJK {
+				fontFace = s.cjkBold
+			} else {
+				fontFace = s.bold
+			}
 
-		case 8:
-			dc.SetFontFace(s.italic)
+		case 8: // Italic
+			if useCJK {
+				fontFace = s.cjkItalic
+			} else {
+				fontFace = s.italic
+			}
 
-		case 12:
-			dc.SetFontFace(s.boldItalic)
+		case 12: // Bold Italic
+			if useCJK {
+				fontFace = s.cjkBoldItalic
+			} else {
+				fontFace = s.boldItalic
+			}
 
-		default:
-			dc.SetFontFace(s.regular)
+		default: // Regular
+			if useCJK {
+				fontFace = s.cjkRegular
+			} else {
+				fontFace = s.regular
+			}
 		}
+
+		dc.SetFontFace(fontFace)
 
 		str := string(cr.Symbol)
 		w, h := dc.MeasureString(str)
