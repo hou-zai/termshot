@@ -412,9 +412,21 @@ func (s *Scaffold) image() (image.Image, error) {
 		str := string(cr.Symbol)
 		w, h := dc.MeasureString(str)
 
+		// Calculate the fixed character width based on the base font's actual character width
+		// Use 'M' as reference (typically widest character in monospace fonts)
+		baseFace := s.regular
+		baseDrawer := &imgfont.Drawer{Face: baseFace}
+		baseCharWidth := float64(baseDrawer.MeasureString("M") >> 6)
+
+		// For CJK characters, use double width (full-width characters in terminals)
+		charWidth := baseCharWidth
+		if isCJKChar(cr.Symbol) {
+			charWidth = baseCharWidth * 2
+		}
+
 		// Use consistent line height based on the regular font for uniform backgrounds
 		// This ensures all characters on the same line have the same background height
-		baseMetrics := s.regular.Metrics()
+		baseMetrics := baseFace.Metrics()
 		baseAscent := float64(baseMetrics.Ascent >> 6)
 		baseDescent := float64(baseMetrics.Descent >> 6)
 		lineHeight := baseAscent + baseDescent
@@ -428,8 +440,8 @@ func (s *Scaffold) image() (image.Image, error) {
 				int((cr.Settings>>48)&0xFF), // #nosec G115
 			)
 
-			// Draw background rectangle with consistent height
-			dc.DrawRectangle(x, y-baseAscent, w, lineHeight)
+			// Draw background rectangle with consistent height and proper width
+			dc.DrawRectangle(x, y-baseAscent, charWidth, lineHeight)
 			dc.Fill()
 		}
 
@@ -465,12 +477,13 @@ func (s *Scaffold) image() (image.Image, error) {
 		// There seems to be no font face based way to do an underlined
 		// string, therefore manually draw a line under each character
 		if cr.Settings&0x1C == 16 {
-			dc.DrawLine(x, y+f(4), x+w, y+f(4))
+			dc.DrawLine(x, y+f(4), x+charWidth, y+f(4))
 			dc.SetLineWidth(f(1))
 			dc.Stroke()
 		}
 
-		x += w
+		// Use fixed character width for proper alignment
+		x += charWidth
 	}
 
 	return dc.Image(), nil
