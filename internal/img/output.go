@@ -246,7 +246,8 @@ func isSymbolChar(r rune) bool {
 		(r >= 0x2580 && r <= 0x259F) || // Block Elements
 		(r >= 0x25A0 && r <= 0x25FF) || // Geometric Shapes
 		(r >= 0x2600 && r <= 0x26FF) || // Miscellaneous Symbols
-		(r >= 0x2700 && r <= 0x27BF) // Dingbats (✓ ✘ ✔ etc.)
+		(r >= 0x2700 && r <= 0x27BF) || // Dingbats (✓ ✘ ✔ etc.)
+		(r >= 0x2800 && r <= 0x28FF) // Braille Patterns (⠀-⣿)
 }
 
 func (s *Scaffold) measureContent() (width float64, height float64) {
