@@ -23,6 +23,7 @@ package cmd
 import (
 	"bytes"
 	"fmt"
+	"image/png"
 	"io"
 	"os"
 	"path/filepath"
@@ -120,6 +121,21 @@ window including all terminal colors and text decorations.
 		//
 		if val, err := cmd.Flags().GetBool("clip-canvas"); err == nil {
 			scaffold.ClipCanvas(val)
+		}
+
+		// Optional: Set PNG compression quality
+		//
+		if quality, err := cmd.Flags().GetString("quality"); err == nil {
+			switch quality {
+			case "low":
+				scaffold.SetCompressionLevel(png.BestSpeed)
+			case "high":
+				scaffold.SetCompressionLevel(png.BestCompression)
+			case "default":
+				scaffold.SetCompressionLevel(png.DefaultCompression)
+			default:
+				return fmt.Errorf("invalid quality value: %s (must be: low, default, or high)", quality)
+			}
 		}
 
 		// Optional: Prepend command line arguments to output content
@@ -312,6 +328,7 @@ func init() {
 
 	// flags for output related settings
 	rootCmd.Flags().StringP("filename", "f", "out.png", "filename of the screenshot")
+	rootCmd.Flags().StringP("quality", "q", "default", "PNG compression quality: low (fast, larger), default (balanced), high (slow, smaller)")
 
 	// flags for raw output processing
 	rootCmd.Flags().String("raw-write", "", "write raw output to file instead of creating a screenshot")

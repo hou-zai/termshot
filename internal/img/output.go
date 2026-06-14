@@ -101,6 +101,9 @@ type Scaffold struct {
 	symbolBold       imgfont.Face
 	symbolItalic     imgfont.Face
 	symbolBoldItalic imgfont.Face
+
+	// PNG compression level: png.DefaultCompression, png.NoCompression, png.BestSpeed, png.BestCompression
+	compressionLevel png.CompressionLevel
 }
 
 func NewImageCreator() Scaffold {
@@ -145,6 +148,8 @@ func NewImageCreator() Scaffold {
 		symbolItalic:     symbolFont.Italic(fontFaceOptions),
 		symbolBoldItalic: symbolFont.BoldItalic(fontFaceOptions),
 
+		compressionLevel: png.DefaultCompression,
+
 		lineSpacing: 1.2,
 		tabSpaces:   2,
 	}
@@ -169,6 +174,8 @@ func (s *Scaffold) DrawDecorations(value bool) { s.drawDecorations = value }
 func (s *Scaffold) DrawShadow(value bool) { s.drawShadow = value }
 
 func (s *Scaffold) ClipCanvas(value bool) { s.clipCanvas = value }
+
+func (s *Scaffold) SetCompressionLevel(level png.CompressionLevel) { s.compressionLevel = level }
 
 func (s *Scaffold) GetFixedColumns() int {
 	if s.columns != 0 {
@@ -541,7 +548,11 @@ func (s *Scaffold) WritePNG(w io.Writer) error {
 		}
 	}
 
-	return png.Encode(w, img)
+	// Use encoder with compression level
+	encoder := &png.Encoder{
+		CompressionLevel: s.compressionLevel,
+	}
+	return encoder.Encode(w, img)
 }
 
 // WriteRaw writes the scaffold content as-is into the provided writer
