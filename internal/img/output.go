@@ -412,11 +412,12 @@ func (s *Scaffold) image() (image.Image, error) {
 		str := string(cr.Symbol)
 		w, h := dc.MeasureString(str)
 
-		// Get font metrics for proper background alignment
-		metrics := fontFace.Metrics()
-		ascent := float64(metrics.Ascent >> 6)
-		descent := float64(metrics.Descent >> 6)
-		fontHeight := ascent + descent
+		// Use consistent line height based on the regular font for uniform backgrounds
+		// This ensures all characters on the same line have the same background height
+		baseMetrics := s.regular.Metrics()
+		baseAscent := float64(baseMetrics.Ascent >> 6)
+		baseDescent := float64(baseMetrics.Descent >> 6)
+		lineHeight := baseAscent + baseDescent
 
 		// background color
 		switch cr.Settings & 0x02 { //nolint:gocritic
@@ -427,8 +428,8 @@ func (s *Scaffold) image() (image.Image, error) {
 				int((cr.Settings>>48)&0xFF), // #nosec G115
 			)
 
-			// Draw background rectangle aligned with font baseline
-			dc.DrawRectangle(x, y-ascent, w, fontHeight)
+			// Draw background rectangle with consistent height
+			dc.DrawRectangle(x, y-baseAscent, w, lineHeight)
 			dc.Fill()
 		}
 
