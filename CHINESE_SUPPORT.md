@@ -5,6 +5,7 @@ This branch adds full Chinese (CJK) character support to termshot by embedding N
 ## 新特性 / New Features
 
 - ✅ **完整的中文字符支持** - 支持简体中文、繁体中文、日文和韩文字符
+- ✅ **Unicode 符号支持** - 支持 ✓ ✘ → ★ ● ◆ 等各种 Unicode 符号字符
 - ✅ **自动字体切换** - 根据字符类型自动在英文字体和中文字体之间切换
 - ✅ **嵌入式字体** - 字体直接打包在二进制文件中，无需额外安装
 - ✅ **保持原有功能** - 完全兼容原有的所有 termshot 功能
@@ -25,9 +26,10 @@ This branch adds full Chinese (CJK) character support to termshot by embedding N
    - 提供与现有字体接口兼容的 API
 
 2. **智能字体切换** (`internal/img/output.go`)
-   - 新增 `isCJKChar()` 函数判断字符类型
+   - 新增 `isCJKChar()` 函数判断 CJK 字符类型
+   - 新增 `isSymbolChar()` 函数判断 Unicode 符号字符
    - 在渲染时根据字符自动选择合适的字体
-   - 支持中英文混合显示
+   - 支持中英文、符号混合显示
 
 3. **CJK 字符检测范围**:
    - Unicode Han (CJK统一汉字)
@@ -36,6 +38,13 @@ This branch adds full Chinese (CJK) character support to termshot by embedding N
    - Hangul (韩文)
    - CJK Symbols and Punctuation (0x3000-0x303F)
    - Halfwidth and Fullwidth Forms (0xFF00-0xFFEF)
+
+4. **Unicode 符号字符检测范围**:
+   - Dingbats (0x2700-0x27BF) - ✓ ✘ ✚ ✖ etc.
+   - Miscellaneous Symbols (0x2600-0x26FF) - ★ ☆ ● ○ etc.
+   - Arrows (0x2190-0x21FF) - → ← ↑ ↓ etc.
+   - Miscellaneous Technical (0x2300-0x23FF)
+   - Geometric Shapes (0x25A0-0x25FF) - ◆ ■ □ etc.
 
 ## 使用示例 / Usage Examples
 
@@ -50,6 +59,19 @@ This branch adds full Chinese (CJK) character support to termshot by embedding N
 
 # 捕获中文命令输出
 ./termshot -c -- bash -c "echo '测试中文'"
+
+# Unicode 符号支持
+./termshot -- echo "✓ Build successful"
+./termshot -- echo "✘ Tests failed"
+./termshot -- echo "→ Next step: Deploy"
+
+# 混合多语言和符号
+./termshot -- cat << EOF
+✓ Success: 构建成功
+✓ Success: ビルド成功
+✓ Success: 빌드 성공
+→ Next: Deploy to production
+EOF
 ```
 
 ### 测试文件 / Test Files

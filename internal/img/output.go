@@ -223,6 +223,16 @@ func isCJKChar(r rune) bool {
 		(r >= 0xFF00 && r <= 0xFFEF) // Halfwidth and Fullwidth Forms
 }
 
+// isSymbolChar checks if a rune is a special symbol character that should use the symbol font
+func isSymbolChar(r rune) bool {
+	// Check marks and symbols
+	return (r >= 0x2700 && r <= 0x27BF) || // Dingbats
+		(r >= 0x2600 && r <= 0x26FF) || // Miscellaneous Symbols
+		(r >= 0x2190 && r <= 0x21FF) || // Arrows
+		(r >= 0x2300 && r <= 0x23FF) || // Miscellaneous Technical
+		(r >= 0x25A0 && r <= 0x25FF) // Geometric Shapes
+}
+
 func (s *Scaffold) measureContent() (width float64, height float64) {
 	var tmp = make([]rune, len(s.content))
 	for i, cr := range s.content {
@@ -339,34 +349,30 @@ func (s *Scaffold) image() (image.Image, error) {
 	for _, cr := range s.content {
 		// Determine font face based on style settings and character type
 		var fontFace imgfont.Face
+		useSymbol := isSymbolChar(cr.Symbol)
 		useCJK := isCJKChar(cr.Symbol)
 
-		switch cr.Settings & 0x1C {
-		case 4: // Bold
-			if useCJK {
+		// Symbols and CJK both use CJK font which has better Unicode coverage
+		if useSymbol || useCJK {
+			switch cr.Settings & 0x1C {
+			case 4: // Bold
 				fontFace = s.cjkBold
-			} else {
-				fontFace = s.bold
-			}
-
-		case 8: // Italic
-			if useCJK {
+			case 8: // Italic
 				fontFace = s.cjkItalic
-			} else {
-				fontFace = s.italic
-			}
-
-		case 12: // Bold Italic
-			if useCJK {
+			case 12: // Bold Italic
 				fontFace = s.cjkBoldItalic
-			} else {
-				fontFace = s.boldItalic
-			}
-
-		default: // Regular
-			if useCJK {
+			default: // Regular
 				fontFace = s.cjkRegular
-			} else {
+			}
+		} else {
+			switch cr.Settings & 0x1C {
+			case 4: // Bold
+				fontFace = s.bold
+			case 8: // Italic
+				fontFace = s.italic
+			case 12: // Bold Italic
+				fontFace = s.boldItalic
+			default: // Regular
 				fontFace = s.regular
 			}
 		}
